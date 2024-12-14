@@ -42,6 +42,9 @@
 
 #define BAUD_RATE  115200
 
+#define GPIO_IR_PINOUT 16
+IRCoolixAC coolix(GPIO_IR_PINOUT);
+
 CondizionatoreIRController &condizionatoreIRController = SinricPro[DEVICE_ID];
 
 /*************
@@ -52,6 +55,9 @@ CondizionatoreIRController &condizionatoreIRController = SinricPro[DEVICE_ID];
 
 // PowerStateController
 bool globalPowerState;
+
+uint32_t acInternalState = 0;
+
 
 // RangeController
 std::map<String, int> globalRangeValues;
@@ -69,6 +75,21 @@ std::map<String, String> globalModes;
 bool onPowerState(const String &deviceId, bool &state) {
   Serial.printf("[Device: %s]: Powerstate changed to %s\r\n", deviceId.c_str(), state ? "on" : "off");
   globalPowerState = state;
+  if(state){
+    //coolix.on();
+    if(acInternalState == 0){
+      Serial.println("Stato non trovato uso quello di default");
+      //Mesg Desc.: Power: On, Mode: 2 (Auto), Fan: 0 (Auto0), Temp: 25C, Zone Follow: Off, Sensor Temp: Off
+      coolix.on();
+    } else {
+      coolix.setRaw(acInternalState);
+    }
+  } else {
+    //save current ac state used in on case
+    acInternalState = coolix.getRaw();
+    coolix.off();
+  }
+  coolix.send();
   return true; // request handled properly
 }
 
@@ -161,6 +182,7 @@ void setup() {
   Serial.begin(BAUD_RATE);
   setupWiFi();
   setupSinricPro();
+  coolix.begin();
 }
 
 /********
